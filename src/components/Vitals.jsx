@@ -373,8 +373,12 @@ function MedsTab({ state, update }) {
             return (
               <div key={med.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0', borderTop: '1px solid var(--line)', marginTop: 8 }}>
                 <div>
-                  <div style={{ fontWeight: 600 }}>{med.name}</div>
-                  <div className="muted sm">{med.doses.map((d) => `${d.label || d.time}`).join(' · ')}</div>
+                  <div style={{ fontWeight: 600 }}>
+                    {med.name}{med.strength ? <span className="muted" style={{ fontWeight: 500 }}> {med.strength}</span> : null}
+                  </div>
+                  <div className="muted sm">
+                    {med.doses.map((d) => [d.amount, fmtTime(d.time)].filter(Boolean).join(' ')).join(' · ')}
+                  </div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
                   {streak > 0 && (
@@ -439,9 +443,9 @@ function MedCheckinCard({ state, update }) {
             </div>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 15, fontWeight: 600, color: taken ? 'var(--muted)' : 'var(--txt)', textDecoration: taken ? 'line-through' : 'none' }}>
-                {med.name}
+                {med.name}{med.strength ? <span className="muted" style={{ fontWeight: 500 }}> {med.strength}</span> : null}
               </div>
-              <div className="muted sm">{dose.label || dose.time}</div>
+              <div className="muted sm">{doseDetail(dose)}</div>
             </div>
             {taken && <span style={{ fontSize: 11, color: '#36e0a8' }}>✓ taken</span>}
           </button>
@@ -500,10 +504,11 @@ function MedHistoryCard({ state }) {
 }
 
 function MedSetupCard({ state, update, onDone }) {
-  const [name, setName]   = useState('')
-  const [doses, setDoses] = useState([{ id: 'd1', time: '08:00', label: 'Morning' }])
+  const [name, setName]       = useState('')
+  const [strength, setStrength] = useState('')
+  const [doses, setDoses]     = useState([{ id: 'd1', time: '08:00', label: 'Morning', amount: '' }])
 
-  const addDose = () => setDoses((p) => [...p, { id: `d${Date.now()}`, time: '20:00', label: 'Evening' }])
+  const addDose = () => setDoses((p) => [...p, { id: `d${Date.now()}`, time: '20:00', label: 'Evening', amount: '' }])
   const removeDose = (id) => setDoses((p) => p.filter((d) => d.id !== id))
   const editDose = (id, k, v) => setDoses((p) => p.map((d) => d.id === id ? { ...d, [k]: v } : d))
 
@@ -511,7 +516,7 @@ function MedSetupCard({ state, update, onDone }) {
     if (!name.trim()) return
     update((s) => {
       s.medications = s.medications || []
-      s.medications.push({ id: `med_${Date.now()}`, name: name.trim(), doses })
+      s.medications.push({ id: `med_${Date.now()}`, name: name.trim(), strength: strength.trim(), doses })
     })
     onDone()
   }
@@ -520,27 +525,42 @@ function MedSetupCard({ state, update, onDone }) {
     <Card glow>
       <Label icon="shield">Add medication</Label>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 12 }}>
-        <div>
-          <label className="lbl">Medication name</label>
-          <input className="inp" type="text" placeholder="e.g. Lisinopril 10mg" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
+        <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: 8 }}>
+          <div>
+            <label className="lbl">Medication name</label>
+            <input className="inp" type="text" placeholder="e.g. Lisinopril" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
+          </div>
+          <div>
+            <label className="lbl">Strength</label>
+            <input className="inp" type="text" placeholder="10 mg" value={strength} onChange={(e) => setStrength(e.target.value)} />
+          </div>
         </div>
 
         <div className="lbl" style={{ marginTop: 4 }}>Doses</div>
-        {doses.map((dose) => (
-          <div key={dose.id} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 8, alignItems: 'end' }}>
-            <div>
-              <label className="lbl">Time</label>
-              <input className="inp" type="time" value={dose.time} onChange={(e) => editDose(dose.id, 'time', e.target.value)} />
+        {doses.map((dose, i) => (
+          <div key={dose.id} style={{ background: 'var(--panel2)', border: '1px solid var(--line)', borderRadius: 12, padding: 12 }}>
+            <div className="row-between" style={{ marginBottom: 8 }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--muted)' }}>Dose {i + 1}</span>
+              {doses.length > 1 && (
+                <button style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', padding: 0 }} onClick={() => removeDose(dose.id)}>
+                  <Icon name="x" size={14} stroke={2} />
+                </button>
+              )}
             </div>
-            <div>
-              <label className="lbl">Label</label>
-              <input className="inp" type="text" placeholder="Morning" value={dose.label} onChange={(e) => editDose(dose.id, 'label', e.target.value)} />
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+              <div>
+                <label className="lbl">Time</label>
+                <input className="inp" type="time" value={dose.time} onChange={(e) => editDose(dose.id, 'time', e.target.value)} />
+              </div>
+              <div>
+                <label className="lbl">Amount</label>
+                <input className="inp" type="text" placeholder="1 tablet" value={dose.amount} onChange={(e) => editDose(dose.id, 'amount', e.target.value)} />
+              </div>
+              <div>
+                <label className="lbl">Label</label>
+                <input className="inp" type="text" placeholder="Morning" value={dose.label} onChange={(e) => editDose(dose.id, 'label', e.target.value)} />
+              </div>
             </div>
-            {doses.length > 1 && (
-              <button style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', paddingBottom: 10 }} onClick={() => removeDose(dose.id)}>
-                <Icon name="x" size={16} stroke={2} />
-              </button>
-            )}
           </div>
         ))}
 
@@ -555,6 +575,22 @@ function MedSetupCard({ state, update, onDone }) {
       </div>
     </Card>
   )
+}
+
+// Build the display string for a dose, e.g. "Morning · 1 tablet · 8:00 AM"
+function doseDetail(dose) {
+  const parts = []
+  if (dose.label) parts.push(dose.label)
+  if (dose.amount) parts.push(dose.amount)
+  parts.push(fmtTime(dose.time))
+  return parts.join(' · ')
+}
+function fmtTime(t) {
+  if (!t) return ''
+  const [h, m] = t.split(':').map(Number)
+  const ap = h >= 12 ? 'PM' : 'AM'
+  const h12 = h % 12 === 0 ? 12 : h % 12
+  return `${h12}:${String(m).padStart(2, '0')} ${ap}`
 }
 
 // ============================================================

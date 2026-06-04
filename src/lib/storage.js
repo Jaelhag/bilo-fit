@@ -44,7 +44,7 @@ const BLANK = {
   // weightLog: [{ id, date, weight (lb), note }]
   weightLog: [],
 
-  // medications: [{ id, name, color, doses: [{ id, time, label }] }]
+  // medications: [{ id, name, strength, doses: [{ id, time, label, amount }] }]
   medications: [],
 
   // medLog: { 'YYYY-MM-DD': { '[medId]-[doseId]': { medId, doseId, taken, takenAt } } }
