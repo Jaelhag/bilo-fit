@@ -13,7 +13,7 @@ const ACCENTS = [
 ]
 
 export default function More({ state, update,
-  accent, setAccent, glow, setGlow, radius, setRadius, density, setDensity, accentOptions }) {
+  accent, setAccent, glow, setGlow, radius, setRadius, density, setDensity, accentOptions, sync }) {
   const fileRef = useRef(null)
   const [msg, setMsg]     = useState('')
 
@@ -109,11 +109,14 @@ export default function More({ state, update,
         </div>
       </Card>
 
+      {/* Cloud sync */}
+      <CloudSyncCard sync={sync} />
+
       {/* Backup & sync */}
       <Card>
-        <Label icon="link">Backup & sync</Label>
+        <Label icon="link">Manual backup</Label>
         <p className="muted sm" style={{ marginTop: 8, marginBottom: 12 }}>
-          Your data lives on this device. Export a backup to move it to your phone or another computer.
+          Export a one-off backup file (a snapshot you control), separate from cloud sync.
         </p>
         <div style={{ display: 'flex', gap: 8 }}>
           <button className="btn" style={{ flex: 1 }} onClick={() => exportFile(state)}>
@@ -126,7 +129,6 @@ export default function More({ state, update,
         </div>
         <input ref={fileRef} type="file" accept="application/json" hidden onChange={onImport} />
         {msg && <div className="check-ok" style={{ marginTop: 8 }}><Icon name="check" size={13} stroke={2.6} /> {msg}</div>}
-        <p className="muted sm" style={{ marginTop: 10 }}>Automatic phone ↔ computer sync — coming next.</p>
       </Card>
 
       {/* The course */}
@@ -142,11 +144,114 @@ export default function More({ state, update,
 
       <Card>
         <p className="muted sm" style={{ textAlign: 'center' }}>
-          Mobility Coach · v0.2 · built on Matthew Smith's Mobility & Flexibility Toolkit
+          Mobility Coach · v0.3 · built on Matthew Smith's Mobility & Flexibility Toolkit
         </p>
       </Card>
 
       <div className="botpad" />
     </div>
   )
+}
+
+// ---- Cloud sync card ----
+const TOKEN_URL = 'https://github.com/settings/tokens/new?scopes=gist&description=Mobility%20Coach%20Sync'
+
+function CloudSyncCard({ sync }) {
+  const [token, setToken] = useState('')
+  const [open, setOpen]   = useState(false)
+  const [flash, setFlash] = useState('')
+
+  if (!sync) return null
+  const { status, connect, push, pull, disconnect } = sync
+
+  const doConnect = async () => {
+    const res = await connect(token.trim())
+    if (res.ok) {
+      setToken(''); setOpen(false)
+      setFlash(res.pulled ? 'Connected — pulled your data from the cloud ✓' : 'Connected — this device is now syncing ✓')
+      setTimeout(() => setFlash(''), 4000)
+    }
+  }
+
+  return (
+    <Card glow={status.connected}>
+      <div className="row-between">
+        <Label icon="link">Cloud sync</Label>
+        {status.connected && (
+          <span className="badge ok" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            {status.busy ? <span className="spin" style={{ width: 10, height: 10, borderWidth: 1.5 }} /> : '●'} synced
+          </span>
+        )}
+      </div>
+
+      {status.connected ? (
+        <>
+          <p className="muted sm" style={{ marginTop: 8 }}>
+            Syncing as <strong style={{ color: 'var(--txt)' }}>{status.login}</strong> via a private GitHub gist.
+            {status.lastSync && <> Last synced {fmtAgo(status.lastSync)}.</>}
+          </p>
+          <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+            <button className="btn" style={{ flex: 1 }} disabled={status.busy} onClick={() => pull()}>
+              <Icon name="back" size={14} stroke={2} style={{ marginRight: 6, verticalAlign: 'middle', transform: 'rotate(90deg)' }} />
+              Pull latest
+            </button>
+            <button className="btn" style={{ flex: 1 }} disabled={status.busy} onClick={() => push()}>
+              <Icon name="send" size={14} stroke={2} style={{ marginRight: 6, verticalAlign: 'middle' }} />
+              Push now
+            </button>
+          </div>
+          <button className="link" style={{ marginTop: 10, color: '#ff8087' }}
+            onClick={() => { if (window.confirm('Disconnect cloud sync on this device? Your data stays on the device and in the cloud.')) disconnect() }}>
+            Disconnect this device
+          </button>
+          {flash && <div className="check-ok" style={{ marginTop: 8 }}><Icon name="check" size={13} stroke={2.6} /> {flash}</div>}
+          {status.error && <div className="ql-err" style={{ marginTop: 8 }}>{status.error}</div>}
+        </>
+      ) : (
+        <>
+          <p className="muted sm" style={{ marginTop: 8 }}>
+            Keep your phone and computer in sync automatically — through a <strong style={{ color: 'var(--txt)' }}>private</strong> locker in your own GitHub account. No new account, free, and only you can see it.
+          </p>
+
+          {!open ? (
+            <button className="btn primary big" style={{ marginTop: 12 }} onClick={() => setOpen(true)}>
+              <Icon name="link" size={16} stroke={2} style={{ marginRight: 6, verticalAlign: 'middle' }} />
+              Turn on sync
+            </button>
+          ) : (
+            <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ background: 'var(--panel2)', border: '1px solid var(--line)', borderRadius: 12, padding: 12 }}>
+                <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>One-time setup (≈2 min):</div>
+                <ol style={{ margin: 0, paddingLeft: 18, fontSize: 13, color: 'var(--muted)', lineHeight: 1.7 }}>
+                  <li>Tap <a className="link" href={TOKEN_URL} target="_blank" rel="noreferrer">this link</a> (opens GitHub). The “gist” box is already ticked.</li>
+                  <li>Scroll down, tap <strong style={{ color: 'var(--txt)' }}>Generate token</strong>.</li>
+                  <li>Copy the token it shows you, and paste it below.</li>
+                </ol>
+              </div>
+              <input className="inp" type="password" placeholder="Paste your GitHub token here"
+                value={token} onChange={(e) => setToken(e.target.value)} autoComplete="off" />
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button className="btn primary" style={{ flex: 1 }} disabled={!token.trim() || status.busy} onClick={doConnect}>
+                  {status.busy ? <><span className="spin" /> Connecting…</> : 'Connect'}
+                </button>
+                <button className="btn ghost" onClick={() => { setOpen(false); setToken('') }}>Cancel</button>
+              </div>
+              {status.error && <div className="ql-err">{status.error}</div>}
+              <p className="muted sm">On your other device, do the same and paste the same token — it'll pull your data automatically.</p>
+            </div>
+          )}
+        </>
+      )}
+    </Card>
+  )
+}
+
+function fmtAgo(iso) {
+  try {
+    const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000)
+    if (s < 60) return 'just now'
+    if (s < 3600) return `${Math.floor(s/60)}m ago`
+    if (s < 86400) return `${Math.floor(s/3600)}h ago`
+    return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  } catch { return '' }
 }

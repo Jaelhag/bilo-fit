@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { load, save } from './lib/storage.js'
+import { useCloudSync } from './lib/sync.js'
 import { GOALS } from './data/library.js'
 import { Icon } from './lib/icons.jsx'
 import Home from './components/Home.jsx'
@@ -38,6 +39,9 @@ export default function App() {
     return next
   })
 
+  // Cloud sync (private GitHub gist). replaceState swaps in pulled cloud data.
+  const sync = useCloudSync(state, (incoming) => setState(incoming))
+
   const activeGoal = useMemo(
     () => GOALS.find((g) => g.id === state.activeGoal) || GOALS[0],
     [state.activeGoal]
@@ -73,6 +77,7 @@ export default function App() {
               radius={radius} setRadius={setRadius}
               density={density} setDensity={setDensity}
               accentOptions={ACCENT_OPTIONS}
+              sync={sync}
             />
           )}
         </div>

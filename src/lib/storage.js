@@ -64,6 +64,11 @@ export function load() {
   }
 }
 
+// Merge external data (e.g. pulled from cloud sync) onto the blank shape.
+export function hydrate(data) {
+  return { ...structuredClone(BLANK), ...(data || {}) }
+}
+
 export function save(state) {
   const next = { ...state, settings: { ...state.settings, updatedAt: new Date().toISOString() } }
   localStorage.setItem(KEY, JSON.stringify(next))
