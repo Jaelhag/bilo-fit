@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { load, save } from './lib/storage.js'
 import { useCloudSync } from './lib/sync.js'
+import { useSheetsSync } from './lib/sheets.js'
 import { GOALS } from './data/library.js'
 import { Icon } from './lib/icons.jsx'
 import Home from './components/Home.jsx'
@@ -41,6 +42,8 @@ export default function App() {
 
   // Cloud sync (private GitHub gist). replaceState swaps in pulled cloud data.
   const sync = useCloudSync(state, (incoming) => setState(incoming))
+  // Google Sheets sync (one-way push to the user's Bilo Fit Data sheet).
+  const sheets = useSheetsSync(state)
 
   const activeGoal = useMemo(
     () => GOALS.find((g) => g.id === state.activeGoal) || GOALS[0],
@@ -78,6 +81,7 @@ export default function App() {
               density={density} setDensity={setDensity}
               accentOptions={ACCENT_OPTIONS}
               sync={sync}
+              sheets={sheets}
             />
           )}
         </div>

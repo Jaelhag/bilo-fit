@@ -13,7 +13,7 @@ const ACCENTS = [
 ]
 
 export default function More({ state, update,
-  accent, setAccent, glow, setGlow, radius, setRadius, density, setDensity, accentOptions, sync }) {
+  accent, setAccent, glow, setGlow, radius, setRadius, density, setDensity, accentOptions, sync, sheets }) {
   const fileRef = useRef(null)
   const [msg, setMsg]     = useState('')
 
@@ -111,6 +111,9 @@ export default function More({ state, update,
 
       {/* Cloud sync */}
       <CloudSyncCard sync={sync} />
+
+      {/* Google Sheets */}
+      <GoogleSheetsCard sheets={sheets} />
 
       {/* Backup & sync */}
       <Card>
@@ -255,4 +258,92 @@ function fmtAgo(iso) {
     if (s < 86400) return `${Math.floor(s/3600)}h ago`
     return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
   } catch { return '' }
+}
+
+// ---- Google Sheets card ----
+const SHEET_URL = 'https://docs.google.com/spreadsheets/d/1Oz0LTN-lnRKo56J2iimaNM9_LGADHDfSVmwHlPUlpLU/edit'
+
+function GoogleSheetsCard({ sheets }) {
+  const [open, setOpen]   = useState(false)
+  const [draft, setDraft] = useState('')
+  const [flash, setFlash] = useState('')
+
+  if (!sheets) return null
+  const { url, setUrl, auto, setAuto, lastPush, busy, error, push, connected } = sheets
+
+  const connect = () => {
+    setUrl(draft)
+    setOpen(false)
+    setFlash('Connected. Tap "Sync now" to send your data.')
+    setTimeout(() => setFlash(''), 4000)
+  }
+
+  return (
+    <Card glow={connected}>
+      <div className="row-between">
+        <Label icon="trend">Google Sheets</Label>
+        {connected && (
+          <span className="badge ok" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            {busy ? <span className="spin" style={{ width: 10, height: 10, borderWidth: 1.5 }} /> : '●'} linked
+          </span>
+        )}
+      </div>
+
+      {connected ? (
+        <>
+          <p className="muted sm" style={{ marginTop: 8 }}>
+            Sending your data to your <a className="link" href={SHEET_URL} target="_blank" rel="noreferrer">Bilo Fit Data sheet</a>.
+            {lastPush && <> Last sent {fmtAgo(lastPush)}.</>}
+          </p>
+          <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+            <button className="btn primary" style={{ flex: 1 }} disabled={busy} onClick={() => push()}>
+              <Icon name="send" size={14} stroke={2} style={{ marginRight: 6, verticalAlign: 'middle' }} />
+              Sync now
+            </button>
+            <a className="btn ghost" style={{ flex: 1, textAlign: 'center', textDecoration: 'none', lineHeight: '22px' }}
+              href={SHEET_URL} target="_blank" rel="noreferrer">Open sheet</a>
+          </div>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, marginTop: 12, cursor: 'pointer' }}>
+            <input type="checkbox" checked={auto} onChange={(e) => setAuto(e.target.checked)} style={{ width: 18, height: 18, accentColor: 'var(--accent)' }} />
+            Auto-send when I log something
+          </label>
+          <button className="link" style={{ marginTop: 10, color: '#ff8087' }} onClick={() => { setUrl(''); }}>
+            Disconnect
+          </button>
+          {flash && <div className="check-ok" style={{ marginTop: 8 }}><Icon name="check" size={13} stroke={2.6} /> {flash}</div>}
+          {error && <div className="ql-err" style={{ marginTop: 8 }}>{error}</div>}
+        </>
+      ) : (
+        <>
+          <p className="muted sm" style={{ marginTop: 8 }}>
+            Send all your data into a <strong style={{ color: 'var(--txt)' }}>Google Sheet</strong> in your Drive — organized into tabs you can chart, filter, or build dashboards on.
+          </p>
+          {!open ? (
+            <button className="btn primary big" style={{ marginTop: 12 }} onClick={() => setOpen(true)}>
+              <Icon name="trend" size={16} stroke={2} style={{ marginRight: 6, verticalAlign: 'middle' }} />
+              Set up Google Sheets
+            </button>
+          ) : (
+            <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ background: 'var(--panel2)', border: '1px solid var(--line)', borderRadius: 12, padding: 12 }}>
+                <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>One-time setup:</div>
+                <ol style={{ margin: 0, paddingLeft: 18, fontSize: 13, color: 'var(--muted)', lineHeight: 1.7 }}>
+                  <li>Open your <a className="link" href={SHEET_URL} target="_blank" rel="noreferrer">Bilo Fit Data sheet</a>.</li>
+                  <li>Menu: <strong style={{ color: 'var(--txt)' }}>Extensions → Apps Script</strong>.</li>
+                  <li>Paste the script Jordan was given, <strong style={{ color: 'var(--txt)' }}>Deploy → Web app</strong>, copy the URL.</li>
+                  <li>Paste that URL below.</li>
+                </ol>
+              </div>
+              <input className="inp" type="url" placeholder="Paste the web-app URL (…/exec)"
+                value={draft} onChange={(e) => setDraft(e.target.value)} autoComplete="off" />
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button className="btn primary" style={{ flex: 1 }} disabled={!draft.trim()} onClick={connect}>Connect</button>
+                <button className="btn ghost" onClick={() => setOpen(false)}>Cancel</button>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </Card>
+  )
 }
