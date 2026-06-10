@@ -6,9 +6,32 @@ import { calcE1RM } from '../data/conditioning.js'
 
 export default function QuickLog({ onClose, update }) {
   const [phase, setPhase] = useState('input')   // input | review | saved
+  const [mode, setMode]   = useState('type')    // type | snap
   const [notes, setNotes] = useState('')
   const [session, setSession] = useState(null)
   const [logDate, setLogDate] = useState(todayStr())
+  const [ocrBusy, setOcrBusy] = useState(false)
+  const [ocrPct, setOcrPct]   = useState(0)
+  const [err, setErr]         = useState(null)
+
+  async function onPickImage(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setErr(null); setOcrBusy(true); setOcrPct(0)
+    try {
+      const Tesseract = (await import('tesseract.js')).default
+      const { data } = await Tesseract.recognize(file, 'eng', {
+        logger: (m) => { if (m.status === 'recognizing text') setOcrPct(Math.round((m.progress || 0) * 100)) },
+      })
+      const text = (data.text || '').trim()
+      if (!text) setErr("Couldn't read any text from that image — try a clearer screenshot.")
+      else setNotes(text)
+    } catch (e2) {
+      setErr('Could not read the image: ' + (e2?.message || 'unknown error'))
+    }
+    setOcrBusy(false)
+    e.target.value = ''
+  }
 
   function runParse() {
     const type = guessType(notes)
@@ -101,11 +124,49 @@ export default function QuickLog({ onClose, update }) {
 
         {phase === 'input' && (
           <div className="ql-body">
-            <textarea className="ql-ta" autoFocus
-              placeholder={"Paste or type your workout, however you write it…\n\nPulldown: 50x10, 90x10, 120x10, 150x10\nDbell row - 110x9\nIncline dbell - 25x5, 35x5, 45x5\nAssisted dip - 110x9, 7\ntreadmill walk 30 min"}
-              value={notes} onChange={(e) => setNotes(e.target.value)} />
-            <div className="ql-hint">It reads your sets (e.g. <b>150x10</b>), splits out notes, and you'll confirm everything before saving.</div>
-            <button className="ql-go" disabled={!notes.trim()} onClick={runParse}>
+            <div className="seg">
+              <button className={`seg-b ${mode === 'type' ? 'on' : ''}`} onClick={() => setMode('type')}>
+                <Icon name="pencil" size={15} stroke={2} /> Type
+              </button>
+              <button className={`seg-b ${mode === 'snap' ? 'on' : ''}`} onClick={() => setMode('snap')}>
+                <Icon name="camera" size={15} stroke={2} /> Screenshot
+              </button>
+            </div>
+
+            {/* Screenshot picker (shown until we have text) */}
+            {mode === 'snap' && !notes && (
+              <label style={{ minHeight: 200, border: '1.5px dashed var(--line2)', borderRadius: 16, background: 'var(--panel2)', cursor: 'pointer', display: 'grid', placeItems: 'center', overflow: 'hidden', padding: 16 }}>
+                <input type="file" accept="image/*" hidden onChange={onPickImage} disabled={ocrBusy} />
+                {ocrBusy ? (
+                  <div style={{ textAlign: 'center', color: 'var(--accent)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+                    <span className="spin" style={{ width: 26, height: 26, borderWidth: 3 }} />
+                    <div style={{ fontWeight: 600 }}>Reading your notes… {ocrPct}%</div>
+                    <div className="muted sm">Happening privately on your device</div>
+                  </div>
+                ) : (
+                  <div style={{ textAlign: 'center', color: 'var(--accent)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, fontWeight: 600 }}>
+                    <Icon name="image" size={30} />
+                    <div>Choose a screenshot<br /><span className="muted sm">of your workout notes</span></div>
+                  </div>
+                )}
+              </label>
+            )}
+
+            {/* Text box — shown for Type mode, or after a screenshot is read */}
+            {(mode === 'type' || notes) && (
+              <>
+                <textarea className="ql-ta" autoFocus={mode === 'type'}
+                  placeholder={"Paste or type your workout, however you write it…\n\nPulldown: 50x10, 90x10, 120x10, 150x10\nDbell row - 110x9\nIncline dbell - 25x5, 35x5, 45x5\ntreadmill walk 30 min"}
+                  value={notes} onChange={(e) => setNotes(e.target.value)} />
+                <div className="ql-hint">
+                  {mode === 'snap' && notes ? 'Read from your screenshot — fix any typos, then continue.' : <>It reads your sets (e.g. <b>150x10</b>), splits out notes, and you'll confirm everything before saving.</>}
+                </div>
+              </>
+            )}
+
+            {err && <div className="ql-err">{err}</div>}
+
+            <button className="ql-go" disabled={!notes.trim() || ocrBusy} onClick={runParse}>
               <Icon name="spark" size={16} /> Read my notes
             </button>
           </div>
