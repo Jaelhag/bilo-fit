@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Icon } from '../../lib/icons.jsx'
-import { Card, Label } from '../../lib/charts.jsx'
+import { Card, Label, DateField, todayStr, dateToISO } from '../../lib/charts.jsx'
 import { SPRINT_WARMUP, SPRINT_WORK } from '../../data/conditioning.js'
 
 export default function ExplosiveDay({ state, update, goTo }) {
@@ -10,6 +10,7 @@ export default function ExplosiveDay({ state, update, goTo }) {
   const [workSets, setWorkSets] = useState([defaultWorkSet()])
   const [saved, setSaved] = useState(false)
   const [note, setNote] = useState('')
+  const [logDate, setLogDate] = useState(todayStr())
 
   const toggle = (id) => setChecked((prev) => {
     const next = new Set(prev)
@@ -27,7 +28,7 @@ export default function ExplosiveDay({ state, update, goTo }) {
       s.conditioningSessions.push({
         id: `s_${Math.random().toString(36).slice(2,10)}`,
         type: 'explosive',
-        date: new Date().toISOString(),
+        date: dateToISO(logDate),
         data: {
           warmupChecked: [...checked],
           sprintWork: workSets,
@@ -54,6 +55,8 @@ export default function ExplosiveDay({ state, update, goTo }) {
 
   return (
     <>
+      <Card><DateField value={logDate} onChange={setLogDate} label="Workout date" /></Card>
+
       {/* Warm-up checklist */}
       {SPRINT_WARMUP.map((section) => (
         <Card key={section.section}>

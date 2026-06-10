@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Icon } from '../../lib/icons.jsx'
-import { Card, Label, Spark } from '../../lib/charts.jsx'
+import { Card, Label, Spark, DateField, todayStr, dateToISO } from '../../lib/charts.jsx'
 import { LIFTS, calcE1RM } from '../../data/conditioning.js'
 
 export default function LiftDay({ type, state, update }) {
@@ -9,6 +9,7 @@ export default function LiftDay({ type, state, update }) {
   const [zone2, setZone2] = useState('')
   const [note, setNote] = useState('')
   const [saved, setSaved] = useState(false)
+  const [logDate, setLogDate] = useState(todayStr())
 
   const addSet = (exId) => setSets((p) => ({
     ...p, [exId]: [...(p[exId] || []), { weight: '', reps: '', rpe: '' }]
@@ -40,7 +41,7 @@ export default function LiftDay({ type, state, update }) {
       s.conditioningSessions.push({
         id: `s_${Math.random().toString(36).slice(2,10)}`,
         type: `${type}-lift`,
-        date: new Date().toISOString(),
+        date: dateToISO(logDate),
         data: { sets, zone2Min: zone2 ? parseInt(zone2, 10) : 0 },
         note,
       })
@@ -48,7 +49,7 @@ export default function LiftDay({ type, state, update }) {
       s.liftProgress = s.liftProgress || {}
       Object.entries(liftRecords).forEach(([exId, rec]) => {
         if (!s.liftProgress[exId]) s.liftProgress[exId] = []
-        s.liftProgress[exId].push({ date: new Date().toISOString(), ...rec })
+        s.liftProgress[exId].push({ date: dateToISO(logDate), ...rec })
       })
     })
     setSaved(true)
@@ -67,11 +68,12 @@ export default function LiftDay({ type, state, update }) {
     <>
       <Card>
         <Label icon={type === 'upper' ? 'train' : 'bolt'}>
-          {type === 'upper' ? 'Upper Body' : 'Lower Body'} · today's lifts
+          {type === 'upper' ? 'Upper Body' : 'Lower Body'} lifts
         </Label>
-        <p className="muted sm" style={{ marginTop: 6 }}>
+        <p className="muted sm" style={{ marginTop: 6, marginBottom: 12 }}>
           Log your working sets. Tap + to add a set per exercise.
         </p>
+        <DateField value={logDate} onChange={setLogDate} label="Workout date" />
       </Card>
 
       {exercises.map((ex) => (

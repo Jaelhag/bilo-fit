@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Icon } from '../lib/icons.jsx'
-import { Ring, Card, Label } from '../lib/charts.jsx'
+import { Ring, Card, Label, DateField, todayStr, dateToISO } from '../lib/charts.jsx'
 import { GOALS } from '../data/library.js'
 import { suggestProgression } from '../lib/engine.js'
 import { newId } from '../lib/storage.js'
@@ -10,6 +10,7 @@ export default function Session({ state, update, activeGoal, goTo }) {
   const [logs, setLogs] = useState(() => initLogs(program))
   const [open, setOpen] = useState(program ? program[0].drillId : null)
   const [finished, setFinished] = useState(null)
+  const [logDate, setLogDate] = useState(todayStr())
 
   if (!program) {
     return (
@@ -37,7 +38,7 @@ export default function Session({ state, update, activeGoal, goTo }) {
     const session = {
       id: newId(),
       goalId: activeGoal.id,
-      date: new Date().toISOString(),
+      date: dateToISO(logDate),
       soreDays: null,
       drills: program.map((d) => ({ drillId: d.drillId, name: d.name, ...logs[d.drillId] })),
     }
@@ -77,6 +78,9 @@ export default function Session({ state, update, activeGoal, goTo }) {
         </div>
         <div className="track" style={{ marginTop: 10 }}>
           <div className="track-fill" style={{ width: `${(done / (total || 1)) * 100}%` }} />
+        </div>
+        <div style={{ marginTop: 12 }}>
+          <DateField value={logDate} onChange={setLogDate} label="Session date" />
         </div>
       </Card>
 

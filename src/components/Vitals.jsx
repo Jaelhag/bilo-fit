@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Icon } from '../lib/icons.jsx'
-import { Card, Label, Spark, Bars, Ring } from '../lib/charts.jsx'
+import { Card, Label, Spark, Bars, Ring, DateField, todayStr, dateToISO } from '../lib/charts.jsx'
 import { classifyBP, bpTrend, rollingAvg, sleepDuration, SLEEP_FACES, SLEEP_LABELS, weightTrendText, todaysMedKey, medComplianceStreak } from '../data/health.js'
 
 export default function Vitals({ state, update }) {
@@ -46,6 +46,7 @@ function BPSection({ state, update }) {
   const [note, setNote] = useState('')
   const [open, setOpen] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [logDate, setLogDate] = useState(todayStr())
 
   const logs = [...(state.bpLog || [])].sort((a,b) => new Date(a.date) - new Date(b.date))
   const latest = logs[logs.length - 1]
@@ -62,7 +63,7 @@ function BPSection({ state, update }) {
       s.bpLog = s.bpLog || []
       s.bpLog.push({
         id: `bp_${Date.now()}`,
-        date: new Date().toISOString(),
+        date: dateToISO(logDate),
         sys: parseInt(sys,10), dia: parseInt(dia,10),
         pulse: pulse ? parseInt(pulse,10) : null,
         note,
@@ -120,6 +121,7 @@ function BPSection({ state, update }) {
 
       {open && (
         <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <DateField value={logDate} onChange={setLogDate} label="Reading date" />
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
             <div><label className="lbl">Systolic</label>
               <input className="inp" type="number" placeholder="118" value={sys} onChange={(e) => setSys(e.target.value)} autoFocus /></div>
@@ -166,6 +168,7 @@ function SleepSection({ state, update }) {
   const [disrupt, setDisrupt] = useState(false)
   const [note, setNote]   = useState('')
   const [saved, setSaved] = useState(false)
+  const [logDate, setLogDate] = useState(todayStr())
 
   const logs = [...(state.sleepLog || [])].sort((a,b) => new Date(a.date) - new Date(b.date))
   const last = logs[logs.length - 1]
@@ -181,7 +184,7 @@ function SleepSection({ state, update }) {
       s.sleepLog = s.sleepLog || []
       s.sleepLog.push({
         id: `sl_${Date.now()}`,
-        date: new Date().toISOString(),
+        date: dateToISO(logDate),
         bedtime: bed, wakeTime: wake,
         durationHours: dur,
         quality: q,
@@ -232,6 +235,7 @@ function SleepSection({ state, update }) {
 
       {open && (
         <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <DateField value={logDate} onChange={setLogDate} label="Morning of" />
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
             <div><label className="lbl">Bedtime</label>
               <input className="inp" type="time" value={bed} onChange={(e) => setBed(e.target.value)} /></div>
@@ -270,6 +274,7 @@ function WeightSection({ state, update }) {
   const [wt, setWt]       = useState('')
   const [note, setNote]   = useState('')
   const [saved, setSaved] = useState(false)
+  const [logDate, setLogDate] = useState(todayStr())
 
   const logs = [...(state.weightLog || [])].sort((a,b) => new Date(a.date) - new Date(b.date))
   const latest = logs[logs.length - 1]
@@ -282,7 +287,7 @@ function WeightSection({ state, update }) {
     if (!wt) return
     update((s) => {
       s.weightLog = s.weightLog || []
-      s.weightLog.push({ id: `wt_${Date.now()}`, date: new Date().toISOString(), weight: parseFloat(wt), note })
+      s.weightLog.push({ id: `wt_${Date.now()}`, date: dateToISO(logDate), weight: parseFloat(wt), note })
     })
     setWt(''); setNote(''); setOpen(false); setSaved(true)
     setTimeout(() => setSaved(false), 2000)
@@ -315,6 +320,7 @@ function WeightSection({ state, update }) {
 
       {open && (
         <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <DateField value={logDate} onChange={setLogDate} label="Weigh-in date" />
           <div><label className="lbl">Weight (lb)</label>
             <input className="inp" type="number" step="0.1" placeholder="e.g. 178.5" value={wt} onChange={(e) => setWt(e.target.value)} autoFocus /></div>
           <input className="inp" type="text" placeholder="Note (optional)" value={note} onChange={(e) => setNote(e.target.value)} />

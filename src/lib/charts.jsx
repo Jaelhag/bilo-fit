@@ -78,3 +78,29 @@ export function Label({ children, icon }) {
     </div>
   )
 }
+
+// ---- Shared date helpers + picker (for backdating any log entry) ----
+export function todayStr() {
+  // Local YYYY-MM-DD (so "today" matches the user's calendar, not UTC)
+  const d = new Date()
+  const off = d.getTimezoneOffset() * 60000
+  return new Date(d - off).toISOString().slice(0, 10)
+}
+
+// Turn a YYYY-MM-DD into an ISO timestamp at local noon (stable for sorting).
+export function dateToISO(ymd) {
+  if (!ymd) return new Date().toISOString()
+  return new Date(ymd + 'T12:00:00').toISOString()
+}
+
+// A compact "when did this happen" control. Defaults to today; can't pick the future.
+export function DateField({ value, onChange, label = 'When?' }) {
+  const isToday = value === todayStr()
+  return (
+    <div>
+      <label className="lbl">{label}{!isToday && <span style={{ color: 'var(--accent)' }}> · backdated</span>}</label>
+      <input className="inp" type="date" value={value} max={todayStr()}
+        onChange={(e) => onChange(e.target.value)} />
+    </div>
+  )
+}

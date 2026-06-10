@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Icon } from '../../lib/icons.jsx'
-import { Card, Label, Spark } from '../../lib/charts.jsx'
+import { Card, Label, Spark, DateField, todayStr, dateToISO } from '../../lib/charts.jsx'
 import { ECHO_PROTOCOLS, nextEchoProtocol } from '../../data/conditioning.js'
 
 export default function EchoBikeDay({ state, update, echoCount = 0 }) {
@@ -18,6 +18,7 @@ export default function EchoBikeDay({ state, update, echoCount = 0 }) {
   )
   const [summary, setSummary] = useState({ duration: '', hrAvg: '', hrMax: '', note: '' })
   const [saved, setSaved] = useState(false)
+  const [logDate, setLogDate] = useState(todayStr())
   const tick = useRef(null)
 
   // Reset when protocol changes
@@ -64,7 +65,7 @@ export default function EchoBikeDay({ state, update, echoCount = 0 }) {
       s.conditioningSessions.push({
         id: `s_${Math.random().toString(36).slice(2,10)}`,
         type: 'echo-bike',
-        date: new Date().toISOString(),
+        date: dateToISO(logDate),
         data: {
           protocol: activeProtocol.id,
           intervalLogs,
@@ -99,6 +100,8 @@ export default function EchoBikeDay({ state, update, echoCount = 0 }) {
 
   return (
     <>
+      <Card><DateField value={logDate} onChange={setLogDate} label="Session date" /></Card>
+
       {/* Protocol selector */}
       <Card glow style={{ '--h': 190 }}>
         <div className="row-between">

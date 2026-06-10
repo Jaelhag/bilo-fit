@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Icon } from '../lib/icons.jsx'
-import { Card, Label, Ring } from '../lib/charts.jsx'
+import { Card, Label, Ring, DateField, todayStr, dateToISO } from '../lib/charts.jsx'
 import { WORKOUT_TYPES, todaysWorkout } from '../data/conditioning.js'
 import Session from './Session.jsx'
 import ExplosiveDay from './conditioning/ExplosiveDay.jsx'
@@ -119,6 +119,7 @@ function Zone2Logger({ state, update }) {
   const [minutes, setMinutes] = useState('')
   const [note, setNote]       = useState('')
   const [saved, setSaved]     = useState(false)
+  const [logDate, setLogDate] = useState(todayStr())
 
   const z2Goal = state.zone2WeeklyGoal || 180
 
@@ -131,13 +132,12 @@ function Zone2Logger({ state, update }) {
 
   const save = () => {
     if (!minutes) return
-    const { newId } = require('../lib/storage.js')
     update((s) => {
       s.conditioningSessions = s.conditioningSessions || []
       s.conditioningSessions.push({
         id: `s_${Math.random().toString(36).slice(2,10)}`,
         type: 'zone2',
-        date: new Date().toISOString(),
+        date: dateToISO(logDate),
         data: { zone2Min: parseInt(minutes, 10) },
         note,
       })
@@ -182,6 +182,7 @@ function Zone2Logger({ state, update }) {
       <Card>
         <Label icon="run">Log a session</Label>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 10 }}>
+          <DateField value={logDate} onChange={setLogDate} label="Date" />
           <div>
             <label className="lbl">Duration (minutes)</label>
             <input className="inp" type="number" min="1" placeholder="e.g. 45"
