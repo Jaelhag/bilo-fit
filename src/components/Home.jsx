@@ -37,6 +37,12 @@ export default function Home({ state, update, activeGoal, goTo }) {
 
   return (
     <div className="screen">
+      {/* Brand wordmark */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '2px 2px 0' }}>
+        <Icon name="bolt" size={16} stroke={2.2} style={{ color: 'var(--accent)' }} />
+        <span style={{ fontWeight: 700, letterSpacing: '.18em', fontSize: 13, color: 'var(--accent)' }}>BILO FIT</span>
+      </div>
+
       {/* Header */}
       <header className="hd">
         <div>

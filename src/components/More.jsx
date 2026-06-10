@@ -144,7 +144,8 @@ export default function More({ state, update,
 
       <Card>
         <p className="muted sm" style={{ textAlign: 'center' }}>
-          Mobility Coach · v0.3 · built on Matthew Smith's Mobility & Flexibility Toolkit
+          <strong style={{ color: 'var(--accent)', letterSpacing: '.08em' }}>BILO FIT</strong> · v0.3<br />
+          built on Matthew Smith's Mobility &amp; Flexibility Toolkit
         </p>
       </Card>
 

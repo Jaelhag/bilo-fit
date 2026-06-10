@@ -1,9 +1,9 @@
 {
-  "name": "mobility-coach",
+  "name": "bilo-fit",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.3.0",
   "type": "module",
-  "description": "Personalized mobility & flexibility coach built on top of the Mobility & Flexibility Toolkit.",
+  "description": "Bilo Fit — a personal performance OS: mobility programming, conditioning, and health tracking.",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
