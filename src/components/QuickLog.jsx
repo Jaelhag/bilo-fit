@@ -12,24 +12,32 @@ export default function QuickLog({ onClose, update }) {
   const [logDate, setLogDate] = useState(todayStr())
   const [ocrBusy, setOcrBusy] = useState(false)
   const [ocrPct, setOcrPct]   = useState(0)
+  const [ocrIdx, setOcrIdx]   = useState(null)   // { cur, total } across multiple images
   const [err, setErr]         = useState(null)
 
   async function onPickImage(e) {
-    const file = e.target.files?.[0]
-    if (!file) return
+    const files = Array.from(e.target.files || [])
+    if (!files.length) return
     setErr(null); setOcrBusy(true); setOcrPct(0)
     try {
       const Tesseract = (await import('tesseract.js')).default
-      const { data } = await Tesseract.recognize(file, 'eng', {
-        logger: (m) => { if (m.status === 'recognizing text') setOcrPct(Math.round((m.progress || 0) * 100)) },
-      })
-      const text = (data.text || '').trim()
-      if (!text) setErr("Couldn't read any text from that image — try a clearer screenshot.")
-      else setNotes(text)
+      let combined = notes ? notes.trimEnd() + '\n\n' : ''   // append to anything already read
+      let gotAny = false
+      for (let i = 0; i < files.length; i++) {
+        setOcrIdx({ cur: i + 1, total: files.length }); setOcrPct(0)
+        const { data } = await Tesseract.recognize(files[i], 'eng', {
+          logger: (m) => { if (m.status === 'recognizing text') setOcrPct(Math.round((m.progress || 0) * 100)) },
+        })
+        const text = (data.text || '').trim()
+        if (text) { combined += text + '\n\n'; gotAny = true }
+      }
+      combined = combined.trim()
+      if (!gotAny) setErr("Couldn't read any text from those images — try clearer screenshots.")
+      else setNotes(combined)
     } catch (e2) {
       setErr('Could not read the image: ' + (e2?.message || 'unknown error'))
     }
-    setOcrBusy(false)
+    setOcrBusy(false); setOcrIdx(null)
     e.target.value = ''
   }
 
@@ -136,17 +144,19 @@ export default function QuickLog({ onClose, update }) {
             {/* Screenshot picker (shown until we have text) */}
             {mode === 'snap' && !notes && (
               <label style={{ minHeight: 200, border: '1.5px dashed var(--line2)', borderRadius: 16, background: 'var(--panel2)', cursor: 'pointer', display: 'grid', placeItems: 'center', overflow: 'hidden', padding: 16 }}>
-                <input type="file" accept="image/*" hidden onChange={onPickImage} disabled={ocrBusy} />
+                <input type="file" accept="image/*" multiple hidden onChange={onPickImage} disabled={ocrBusy} />
                 {ocrBusy ? (
                   <div style={{ textAlign: 'center', color: 'var(--accent)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
                     <span className="spin" style={{ width: 26, height: 26, borderWidth: 3 }} />
-                    <div style={{ fontWeight: 600 }}>Reading your notes… {ocrPct}%</div>
+                    <div style={{ fontWeight: 600 }}>
+                      Reading {ocrIdx && ocrIdx.total > 1 ? `image ${ocrIdx.cur} of ${ocrIdx.total}` : 'your notes'}… {ocrPct}%
+                    </div>
                     <div className="muted sm">Happening privately on your device</div>
                   </div>
                 ) : (
                   <div style={{ textAlign: 'center', color: 'var(--accent)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, fontWeight: 600 }}>
                     <Icon name="image" size={30} />
-                    <div>Choose a screenshot<br /><span className="muted sm">of your workout notes</span></div>
+                    <div>Choose screenshot(s)<br /><span className="muted sm">pick one or several of your notes</span></div>
                   </div>
                 )}
               </label>
@@ -159,8 +169,16 @@ export default function QuickLog({ onClose, update }) {
                   placeholder={"Paste or type your workout, however you write it…\n\nPulldown: 50x10, 90x10, 120x10, 150x10\nDbell row - 110x9\nIncline dbell - 25x5, 35x5, 45x5\ntreadmill walk 30 min"}
                   value={notes} onChange={(e) => setNotes(e.target.value)} />
                 <div className="ql-hint">
-                  {mode === 'snap' && notes ? 'Read from your screenshot — fix any typos, then continue.' : <>It reads your sets (e.g. <b>150x10</b>), splits out notes, and you'll confirm everything before saving.</>}
+                  {mode === 'snap' && notes ? 'Read from your screenshot(s) — fix any typos, then continue.' : <>It reads your sets (e.g. <b>150x10</b>), splits out notes, and you'll confirm everything before saving.</>}
                 </div>
+                {mode === 'snap' && notes && (
+                  <label className="link" style={{ cursor: 'pointer' }}>
+                    <input type="file" accept="image/*" multiple hidden onChange={onPickImage} disabled={ocrBusy} />
+                    {ocrBusy
+                      ? <>Reading {ocrIdx && ocrIdx.total > 1 ? `image ${ocrIdx.cur} of ${ocrIdx.total}` : ''}… {ocrPct}%</>
+                      : '+ Add another screenshot'}
+                  </label>
+                )}
               </>
             )}
 
