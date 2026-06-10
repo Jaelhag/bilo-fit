@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Icon } from '../lib/icons.jsx'
 import { DateField, todayStr, dateToISO } from '../lib/charts.jsx'
 import { guessType, parseWorkout, SESSION_TYPES } from '../lib/parse.js'
+import { hasAi, getAiKey, aiParse, fileToInline } from '../lib/ai.js'
 import { calcE1RM } from '../data/conditioning.js'
 
 export default function QuickLog({ onClose, update }) {
@@ -14,14 +15,40 @@ export default function QuickLog({ onClose, update }) {
   const [ocrPct, setOcrPct]   = useState(0)
   const [ocrIdx, setOcrIdx]   = useState(null)   // { cur, total } across multiple images
   const [err, setErr]         = useState(null)
+  const [useAi, setUseAi]     = useState(hasAi())
+  const [busy, setBusy]       = useState(false)  // AI in-flight
+
+  const applyDate = (parsed) => {
+    if (parsed?.dateGuess) {
+      const d = new Date(parsed.dateGuess)
+      if (!isNaN(d)) { const off = d.getTimezoneOffset() * 60000; setLogDate(new Date(d - off).toISOString().slice(0, 10)) }
+    }
+  }
 
   async function onPickImage(e) {
     const files = Array.from(e.target.files || [])
     if (!files.length) return
-    setErr(null); setOcrBusy(true); setOcrPct(0)
+    setErr(null); e.target.value = ''
+
+    // ---- AI path: send the image(s) straight to Gemini (OCR + parse in one) ----
+    if (useAi && hasAi()) {
+      setBusy(true)
+      try {
+        const images = await Promise.all(files.map(fileToInline))
+        const parsed = await aiParse(getAiKey(), { images })
+        setSession(parsed); setPhase('review')
+      } catch (e2) {
+        setErr('AI couldn’t read that: ' + (e2?.message || 'unknown error'))
+      }
+      setBusy(false)
+      return
+    }
+
+    // ---- On-device path: Tesseract OCR → text ----
+    setOcrBusy(true); setOcrPct(0)
     try {
       const Tesseract = (await import('tesseract.js')).default
-      let combined = notes ? notes.trimEnd() + '\n\n' : ''   // append to anything already read
+      let combined = notes ? notes.trimEnd() + '\n\n' : ''
       let gotAny = false
       for (let i = 0; i < files.length; i++) {
         setOcrIdx({ cur: i + 1, total: files.length }); setOcrPct(0)
@@ -38,20 +65,24 @@ export default function QuickLog({ onClose, update }) {
       setErr('Could not read the image: ' + (e2?.message || 'unknown error'))
     }
     setOcrBusy(false); setOcrIdx(null)
-    e.target.value = ''
   }
 
-  function runParse() {
+  async function runParse() {
+    setErr(null)
+    if (useAi && hasAi()) {
+      setBusy(true)
+      try {
+        const parsed = await aiParse(getAiKey(), { text: notes })
+        setSession(parsed); setPhase('review')
+      } catch (e) {
+        setErr(e.message + ' (You can switch off AI to use the built-in reader.)')
+      }
+      setBusy(false)
+      return
+    }
     const type = guessType(notes)
     const parsed = parseWorkout(notes, type)
-    // If the text had a date line we recognized, prefer it
-    if (parsed.dateGuess) {
-      const d = new Date(parsed.dateGuess)
-      if (!isNaN(d)) {
-        const off = d.getTimezoneOffset() * 60000
-        setLogDate(new Date(d - off).toISOString().slice(0, 10))
-      }
-    }
+    applyDate(parsed)
     setSession(parsed)
     setPhase('review')
   }
@@ -141,22 +172,32 @@ export default function QuickLog({ onClose, update }) {
               </button>
             </div>
 
+            {/* AI toggle (only if a Gemini key is connected) */}
+            {hasAi() && (
+              <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', border: '1px solid var(--line)', borderRadius: 10, background: useAi ? 'color-mix(in oklab, var(--accent) 10%, transparent)' : 'var(--panel2)' }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 600 }}>
+                  <Icon name="spark" size={15} style={{ color: 'var(--accent)' }} /> Use AI to read it
+                </span>
+                <input type="checkbox" checked={useAi} onChange={(e) => setUseAi(e.target.checked)} style={{ width: 18, height: 18, accentColor: 'var(--accent)' }} />
+              </label>
+            )}
+
             {/* Screenshot picker (shown until we have text) */}
             {mode === 'snap' && !notes && (
-              <label style={{ minHeight: 200, border: '1.5px dashed var(--line2)', borderRadius: 16, background: 'var(--panel2)', cursor: 'pointer', display: 'grid', placeItems: 'center', overflow: 'hidden', padding: 16 }}>
-                <input type="file" accept="image/*" multiple hidden onChange={onPickImage} disabled={ocrBusy} />
-                {ocrBusy ? (
+              <label style={{ minHeight: 200, border: '1.5px dashed var(--line2)', borderRadius: 16, background: 'var(--panel2)', cursor: (ocrBusy || busy) ? 'default' : 'pointer', display: 'grid', placeItems: 'center', overflow: 'hidden', padding: 16 }}>
+                <input type="file" accept="image/*" multiple hidden onChange={onPickImage} disabled={ocrBusy || busy} />
+                {(ocrBusy || busy) ? (
                   <div style={{ textAlign: 'center', color: 'var(--accent)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
                     <span className="spin" style={{ width: 26, height: 26, borderWidth: 3 }} />
                     <div style={{ fontWeight: 600 }}>
-                      Reading {ocrIdx && ocrIdx.total > 1 ? `image ${ocrIdx.cur} of ${ocrIdx.total}` : 'your notes'}… {ocrPct}%
+                      {busy ? 'AI is reading your notes…' : `Reading ${ocrIdx && ocrIdx.total > 1 ? `image ${ocrIdx.cur} of ${ocrIdx.total}` : 'your notes'}… ${ocrPct}%`}
                     </div>
-                    <div className="muted sm">Happening privately on your device</div>
+                    <div className="muted sm">{busy ? 'Sent to Gemini AI' : 'Happening privately on your device'}</div>
                   </div>
                 ) : (
                   <div style={{ textAlign: 'center', color: 'var(--accent)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, fontWeight: 600 }}>
                     <Icon name="image" size={30} />
-                    <div>Choose screenshot(s)<br /><span className="muted sm">pick one or several of your notes</span></div>
+                    <div>Choose screenshot(s)<br /><span className="muted sm">{useAi ? 'AI will read & organize them' : 'pick one or several of your notes'}</span></div>
                   </div>
                 )}
               </label>
@@ -184,8 +225,10 @@ export default function QuickLog({ onClose, update }) {
 
             {err && <div className="ql-err">{err}</div>}
 
-            <button className="ql-go" disabled={!notes.trim() || ocrBusy} onClick={runParse}>
-              <Icon name="spark" size={16} /> Read my notes
+            <button className="ql-go" disabled={!notes.trim() || ocrBusy || busy} onClick={runParse}>
+              {busy
+                ? <><span className="spin" /> AI is reading…</>
+                : <><Icon name="spark" size={16} /> {useAi && hasAi() ? 'Read with AI' : 'Read my notes'}</>}
             </button>
           </div>
         )}

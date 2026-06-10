@@ -3,6 +3,7 @@ import { Icon } from '../lib/icons.jsx'
 import { Card, Label } from '../lib/charts.jsx'
 import { exportFile, importFile } from '../lib/storage.js'
 import { COURSE_BASE } from '../data/library.js'
+import { getAiKey, setAiKey } from '../lib/ai.js'
 
 const ACCENTS = [
   { hex: '#2f6bff', label: 'Electric Blue' },
@@ -114,6 +115,9 @@ export default function More({ state, update,
 
       {/* Google Sheets */}
       <GoogleSheetsCard sheets={sheets} />
+
+      {/* AI parsing */}
+      <AiParsingCard />
 
       {/* Backup & sync */}
       <Card>
@@ -258,6 +262,64 @@ function fmtAgo(iso) {
     if (s < 86400) return `${Math.floor(s/3600)}h ago`
     return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
   } catch { return '' }
+}
+
+// ---- AI parsing (Gemini) card ----
+function AiParsingCard() {
+  const [key, setKey]   = useState(getAiKey())
+  const [draft, setDraft] = useState('')
+  const [open, setOpen] = useState(false)
+  const connected = !!key
+
+  const connect = () => { setAiKey(draft); setKey(draft.trim()); setDraft(''); setOpen(false) }
+  const disconnect = () => { setAiKey(''); setKey('') }
+
+  return (
+    <Card glow={connected}>
+      <div className="row-between">
+        <Label icon="spark">AI parsing</Label>
+        {connected && <span className="badge ok">● on</span>}
+      </div>
+
+      {connected ? (
+        <>
+          <p className="muted sm" style={{ marginTop: 8 }}>
+            Quick Log now uses <strong style={{ color: 'var(--txt)' }}>Gemini AI</strong> to read your notes and screenshots — it handles messy text, handwriting, and photos.
+          </p>
+          <button className="link" style={{ marginTop: 10, color: '#ff8087' }} onClick={disconnect}>Turn off AI parsing</button>
+        </>
+      ) : (
+        <>
+          <p className="muted sm" style={{ marginTop: 8 }}>
+            Optional upgrade: let <strong style={{ color: 'var(--txt)' }}>Google Gemini AI</strong> read your workout notes & screenshots (smarter than the built-in reader, handles handwriting). Free.
+          </p>
+          {!open ? (
+            <button className="btn primary big" style={{ marginTop: 12 }} onClick={() => setOpen(true)}>
+              <Icon name="spark" size={16} style={{ marginRight: 6, verticalAlign: 'middle' }} /> Connect AI
+            </button>
+          ) : (
+            <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ background: 'var(--panel2)', border: '1px solid var(--line)', borderRadius: 12, padding: 12 }}>
+                <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Get a free key (≈1 min):</div>
+                <ol style={{ margin: 0, paddingLeft: 18, fontSize: 13, color: 'var(--muted)', lineHeight: 1.7 }}>
+                  <li>Open <a className="link" href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer">Google AI Studio</a> (sign in with your Google account).</li>
+                  <li>Tap <strong style={{ color: 'var(--txt)' }}>Create API key</strong> → copy it.</li>
+                  <li>Paste it below.</li>
+                </ol>
+              </div>
+              <input className="inp" type="password" placeholder="Paste your Gemini API key"
+                value={draft} onChange={(e) => setDraft(e.target.value)} autoComplete="off" />
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button className="btn primary" style={{ flex: 1 }} disabled={!draft.trim()} onClick={connect}>Connect</button>
+                <button className="btn ghost" onClick={() => setOpen(false)}>Cancel</button>
+              </div>
+              <p className="muted sm">The key is stored on this device only. For extra safety you can restrict it to your site in Google Cloud.</p>
+            </div>
+          )}
+        </>
+      )}
+    </Card>
+  )
 }
 
 // ---- Google Sheets card ----
