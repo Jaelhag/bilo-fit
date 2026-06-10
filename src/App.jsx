@@ -103,7 +103,7 @@ export default function App() {
           ))}
         </nav>
 
-        {log && <QuickLog onClose={() => setLog(false)} />}
+        {log && <QuickLog onClose={() => setLog(false)} update={update} />}
       </div>
     </div>
   )

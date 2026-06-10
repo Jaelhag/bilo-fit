@@ -104,12 +104,23 @@ export default function History({ state, update }) {
             </div>
           )}
 
-          {/* Lift summary */}
+          {/* Lift summary — object-keyed (structured) or array (quick-logged) */}
           {(s.type === 'upper-lift' || s.type === 'lower-lift') && s.data?.sets && (
             <div className="muted sm" style={{ marginTop: 8 }}>
               {Object.entries(s.data.sets).filter(([,v])=>v.length).map(([k,v]) => `${k.replace(/-/g,' ')} ${v.length} sets`).join(' · ')}
               {s.data.zone2Min ? ` · ${s.data.zone2Min} min Z2` : ''}
             </div>
+          )}
+          {s.data?.exercises && s.data.exercises.length > 0 && (
+            <ul className="hist-drills" style={{ marginTop: 8 }}>
+              {s.data.exercises.map((ex, i) => (
+                <li key={i}>
+                  <span>{ex.name}</span>
+                  <span className="muted sm mono">{(ex.sets||[]).map((st)=>`${st.weight||''}${st.weight&&st.reps?'×':''}${st.reps||''}`).filter(Boolean).join(', ')}</span>
+                </li>
+              ))}
+              {s.data.zone2Min ? <li><span className="muted sm">Zone 2</span><span className="muted sm mono">{s.data.zone2Min} min</span></li> : null}
+            </ul>
           )}
 
           {/* Zone 2 */}
