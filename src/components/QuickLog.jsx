@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Icon } from '../lib/icons.jsx'
 import { DateField, todayStr, dateToISO } from '../lib/charts.jsx'
 import { guessType, parseWorkout, SESSION_TYPES } from '../lib/parse.js'
-import { hasAi, getAiKey, aiParse, fileToInline } from '../lib/ai.js'
+import { hasAi, aiParse, fileToInline } from '../lib/ai.js'
 import { calcE1RM } from '../data/conditioning.js'
 
 export default function QuickLog({ onClose, update }) {
@@ -35,7 +35,7 @@ export default function QuickLog({ onClose, update }) {
       setBusy(true)
       try {
         const images = await Promise.all(files.map(fileToInline))
-        const parsed = await aiParse(getAiKey(), { images })
+        const parsed = await aiParse({ images })
         setSession(parsed); setPhase('review')
       } catch (e2) {
         setErr('AI couldn’t read that: ' + (e2?.message || 'unknown error'))
@@ -72,7 +72,7 @@ export default function QuickLog({ onClose, update }) {
     if (useAi && hasAi()) {
       setBusy(true)
       try {
-        const parsed = await aiParse(getAiKey(), { text: notes })
+        const parsed = await aiParse({ text: notes })
         setSession(parsed); setPhase('review')
       } catch (e) {
         setErr(e.message + ' (You can switch off AI to use the built-in reader.)')
